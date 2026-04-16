@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Steam Game Playtime Predictor</title>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <style>
+        body {
+            font-family: Arial;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #1b2838;
+            color: white;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px 0;
+        }
+        button {
+            background-color: #66c0f4;
+            color: black;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #2a475e;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Steam Playtime Predictor</h1>
+    <p>Enter game info to predict playtime</p>
+    
+    <label>Price ($):</label>
+    <input type="number" id="price" value="19.99">
+    
+    <label>User Reviews:</label>
+    <input type="number" id="reviews" value="5000">
+    
+    <label>Positive Ratio (0-100):</label>
+    <input type="number" id="ratio" value="85">
+    
+    <button onclick="makePrediction()">Predict</button>
+    
+    <div id="result">
+        <h3>Predicted Hours: <span id="hours"></span></h3>
+    </div>
+    
+    <p style="margin-top: 40px; text-align: center;">
+        Brandon Batara - ITS 33000 - Spring 2026
+    </p>
+
+    <script>
+        var model = null;
+        var scalerData = null;
+
+        async function loadStuff() {
+
+            var response = await fetch('scaler_params.json');
+            scalerData = await response.json();
+
+            model = await ort.InferenceSession.create('steam_playtime_model.onnx');
+        }
+
+        async function makePrediction() {
+
+            var price = parseFloat(document.getElementById('price').value);
+            var reviews = parseFloat(document.getElementById('reviews').value);
+            var ratio = parseFloat(document.getElementById('ratio').value);
+
+
+            var scaledPrice = (price - scalerData.mean[0]) / scalerData.scale[0];
+            var scaledReviews = (reviews - scalerData.mean[1]) / scalerData.scale[1];
+            var scaledRatio = (ratio - scalerData.mean[2]) / scalerData.scale[2];
+
+            var inputs = [scaledPrice, scaledReviews, scaledRatio];
+
+            var tensor = new ort.Tensor('float32', inputs, [1, 3]);
+            var output = await model.run({ input: tensor });
+            var prediction = output.output.data[0];
+
+            document.getElementById('hours').textContent = prediction.toFixed(1);
+            document.getElementById('result').style.display = 'block';
+        }
+
+        loadStuff();
+    </script>
+</body>
+</html>
